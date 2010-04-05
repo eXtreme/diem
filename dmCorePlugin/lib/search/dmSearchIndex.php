@@ -54,6 +54,11 @@ class dmSearchIndex extends dmSearchIndexCommon
     return $this->setOption('culture', $culture);
   }
 
+  /**
+   * Get search results from a search query
+   * @param string or Zend_Search_Lucene_Search_Query $query
+   * @return array hits
+   */
   public function search($query)
   {
     if (!$query instanceof Zend_Search_Lucene_Search_Query)
@@ -61,13 +66,13 @@ class dmSearchIndex extends dmSearchIndexCommon
       $query = $this->getLuceneQuery($this->cleanText($query));
     }
 
-    $luceneHits = $this->luceneIndex->find($query);
     $hits = array();
-    foreach($luceneHits as $hit)
+    foreach($this->luceneIndex->find($query) as $hit)
     {
       $hits[] = $this->serviceContainer
       ->setParameter('search_hit.score', $hit->score)
       ->setParameter('search_hit.page_id', $hit->page_id)
+      ->setParameter('search_hit.page_content', $hit->content)
       ->getService('search_hit');
     }
     unset($luceneHits);
@@ -220,7 +225,7 @@ class dmSearchIndex extends dmSearchIndexCommon
       'Size'      => dmOs::humanizeSize($this->getByteSize())
     );
   }
-  
+
   /**
    * @return Zend_Search_Lucene_Proxy instance
    */

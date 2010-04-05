@@ -20,6 +20,8 @@ echo _tag('h1', __('Results %1% to %2% of %3%', array(
 
 echo _open('ol.search_results start='.$pager->getFirstIndice());
 
+echo $pager->renderNavigationTop();
+
 foreach($pager as $result)
 {
   $page = $result->getPage();
@@ -30,9 +32,11 @@ foreach($pager as $result)
     
     _link($page)->text(
       _tag('span.page_name', escape($page->name)).
-      ($page->description ? _tag('span.page_description', $page->description) : '')
+      dmString::truncate($result->getPageContent(), 200)
     )
   );
 }
 
 echo _close('ol');
+
+echo $pager->renderNavigationBottom();
