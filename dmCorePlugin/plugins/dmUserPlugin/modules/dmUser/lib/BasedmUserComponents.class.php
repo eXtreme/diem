@@ -13,6 +13,20 @@ class BasedmUserComponents extends myFrontModuleComponents
     $this->form = $this->forms['DmUser'];
   }
 
+  public function executeForgotPassword(sfWebRequest $request)
+  {
+    if(isset($this->forms['DmForgotPasswordStep1']))
+    {
+      $this->step = 1;
+      $this->form = $this->forms['DmForgotPasswordStep1'];
+    }
+    else
+    {
+      $this->step = 2;
+      $this->form = $this->forms['DmForgotPasswordStep2'];
+    }
+  }
+
   public function executeList()
   {
     $query = $this->getListQuery();

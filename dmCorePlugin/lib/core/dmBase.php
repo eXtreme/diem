@@ -1,6 +1,6 @@
 <?php
 
-define('DIEM_VERSION', '5.1.0-ALPHA2');
+define('DIEM_VERSION', '5.1.0-RC3');
 
 // include symfony
 if (!defined('SYMFONY_VERSION'))
@@ -11,7 +11,6 @@ if (!defined('SYMFONY_VERSION'))
 
 class dmBase
 {
-
   protected static
   $startTime,
   $version,

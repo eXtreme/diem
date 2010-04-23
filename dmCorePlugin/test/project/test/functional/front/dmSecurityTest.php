@@ -46,9 +46,8 @@ $b
 ->info('Go to inactive page')
 ->get('page2')
 ->checks(array(
-  'code' => 401
+  'code' => 404
 ))
-->has('.dm_signin_form input.submit')
 ->info('Go to unsecured page with credentials')
 ->get('page111')
 ->isPageModuleAction('main/page111')
@@ -214,7 +213,7 @@ $b->info('Synchronise pages...');
 $helper->getService('filesystem')->sf('dm:sync-pages');
 
 $b
-->back()
+->get('/authors')
 ->click('Jannis')
 ->checks()
 ->get('/authors/jannis')

@@ -8,6 +8,7 @@ class Doctrine_Template_DmGallery extends Doctrine_Template
   protected $_options = array(
     'mediaClass'    => 'DmMedia',
     'mediaAlias'    => 'Medias',
+    'formClass'     => 'DmMediaForm',
     'className'     => '%CLASS%DmMedia',
     'generateFiles' => false,
     'table'         => false,
@@ -30,7 +31,7 @@ class Doctrine_Template_DmGallery extends Doctrine_Template
 
     dmDb::table($this->_options['mediaClass'])->bind(array($this->_table->getComponentName(), array(
       'local'    => 'dm_media_id',
-      'foreign'  => 'id',
+      'foreign'  => 'dm_record_id',
       'refClass' => $this->_plugin->getTable()->getOption('name')
     )), Doctrine_Relation::MANY);
   }
@@ -123,5 +124,10 @@ class Doctrine_Template_DmGallery extends Doctrine_Template
   public function getGalleryRelClass()
   {
     return $this->_plugin->getTable()->getOption('name');
+  }
+
+  public function getGalleryFormClass()
+  {
+    return $this->getOption('formClass');
   }
 }

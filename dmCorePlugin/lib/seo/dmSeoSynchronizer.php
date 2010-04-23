@@ -177,13 +177,35 @@ class dmSeoSynchronizer
           {
             $modifiedFields['id'] = $id;
             $modifiedFields['lang'] = $this->culture;
-            $translation = new DmPageTranslation;
+            $translation = new DmPageTranslation();
             $translation->fromArray($modifiedFields);
 
             $conn->unitOfWork->processSingleInsert($translation);
+
+            if(array_key_exists('slug', $modifiedFields))
+            {
+              // verify the slug is not already in use
+              if(!dmDb::table('DmPage')->isSlugUnique($translation->get('slug'), $id))
+              {
+                myDoctrineQuery::create($conn)->update('DmPageTranslation')
+                ->set(array('slug' => dmDb::table('DmPage')->createUniqueSlug($translation->get('slug'), $id, $parentSlug)))
+                ->where('id = ?', $id)
+                ->andWhere('lang = ?', $this->culture)
+                ->execute();
+              }
+            }
           }
           else
           {
+            if(array_key_exists('slug', $modifiedFields))
+            {
+              // verify the slug is not already in use
+              if(!dmDb::table('DmPage')->isSlugUnique($modifiedFields['slug'], $id))
+              {
+                $modifiedFields['slug'] = dmDb::table('DmPage')->createUniqueSlug($modifiedFields['slug'], $id, $parentSlug);
+              }
+            }
+            
             myDoctrineQuery::create($conn)->update('DmPageTranslation')
             ->set($modifiedFields)
             ->where('id = ?', $id)

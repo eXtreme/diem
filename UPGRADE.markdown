@@ -20,3 +20,17 @@ With Diem 5.1 the layout can have more than top, left, right and bottom areas.
 You can use whatever area name, and as many areas you want to.
 The same way, each page as now many areas instead of only "content".
 See the new default layout file: dmFrontPlugin/modules/dmFront/templates/pageSuccess.php
+
+## Upgrade your base form filter class
+Verify your abstract class BaseFormFilterDoctrine extends dmFormFilterDoctrine
+in lib/filter/doctrine/BaseFormFilterDoctrine.class.php
+
+## Update front form create
+The front form manager does not create forms automatically anymore.
+[code php]
+// Diem 5.0
+$form = $this->forms['Contact'];
+
+// Diem 5.1
+$form = $this->forms['Contact'] = new ContactForm();
+[/code]

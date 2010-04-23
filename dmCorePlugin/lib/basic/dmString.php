@@ -127,7 +127,7 @@ class dmString extends sfInflector
     $text = preg_replace(array('/\W/', '/\s+/'), array(' ', '-'), $text);
 
     // trim and lowercase
-    $text = strtolower(trim($text, '-'));
+    $text = self::strtolower(trim($text, '-'));
     
     if ($preserveSlashes)
     {
@@ -135,6 +135,20 @@ class dmString extends sfInflector
     }
 
     return $text;
+  }
+
+  /**
+   * Like slugify, but allows ".htm" and ".html" extensions
+   * @return string slug
+   */
+  public static function urlize($text, $preserveSlashes = false)
+  {
+    if(!preg_match('|\.html?$|', $text))
+    {
+      return self::slugify($text, $preserveSlashes);
+    }
+    
+    return preg_replace('|^(.*)-(html?)$|', '$1.$2', self::slugify($text, $preserveSlashes));
   }
   
   /**
@@ -313,6 +327,16 @@ class dmString extends sfInflector
     return $val;
   }
 
+  /**
+   * Will use mb_strtolower if available, strtolower if not
+   * @param   $str  the string
+   * @return  $str  the lowercase string
+   */
+  public static function strtolower($str)
+  {
+    return function_exists('mb_strtolower') ? mb_strtolower($str) : strtolower($str);
+  }
+
   public static function truncate($text, $length = 30, $truncateString = '...', $truncateLastspace = false)
   {
     if(is_array($text))
@@ -409,7 +433,7 @@ class dmString extends sfInflector
   {
     if (!empty($string))
     {
-      $string{0} = strtolower($string{0});
+      $string{0} = self::strtolower($string{0});
     }
     
     return $string;

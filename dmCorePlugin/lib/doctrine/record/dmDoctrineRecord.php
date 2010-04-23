@@ -19,8 +19,6 @@ abstract class dmDoctrineRecord extends sfDoctrineRecord
   {
     if ($this->getTable()->hasI18n())
     {
-      self::initializeI18n();
-
       // only add filter to each table once
       if (!$this->getTable()->getOption('has_symfony_i18n_filter'))
       {
@@ -307,7 +305,12 @@ abstract class dmDoctrineRecord extends sfDoctrineRecord
    */
   public function getDmPage()
   {
-    if(!$this->getDmModule()->hasPage())
+    if($this->getTable()->hasRelation('DmPage'))
+    {
+      return $this->_get('DmPage');
+    }
+    
+    if(!$this->getDmModule() || !$this->getDmModule()->hasPage())
     {
       throw new dmRecordException(sprintf('record %s has no page because module %s has no page', get_class($this), $this->getDmModule()));
     }
@@ -584,14 +587,23 @@ abstract class dmDoctrineRecord extends sfDoctrineRecord
 
       if ($hasAccessor || method_exists($this, $accessor))
       {
-        /*
+        /**
          * Special case.
          * For versionable tables, we don't want to use
          * the getVersion accessor when requesting 'version'.
          * This is because "Version" is a relation, and "version" is a fieldname.
          * The case is lost when using getVersion.
          */
-        if ('version' === $fieldName && $this->getTable()->isVersionable())
+        if ('getVersion' === $accessor && $this->getTable()->isVersionable())
+        {
+          return $this->_get($fieldName, $load);
+        }
+
+        /**
+         * Special case.
+         * ->getService() is reserved for getting services
+         */
+        if ('getService' === $accessor)
         {
           return $this->_get($fieldName, $load);
         }

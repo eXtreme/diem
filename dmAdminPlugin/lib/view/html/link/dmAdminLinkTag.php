@@ -30,7 +30,8 @@ class dmAdminLinkTag extends dmBaseLinkTag
     if(is_string($this->resource))
     {
       $resource = $this->resource;
-      /*
+      
+      /**
        * If a blank space is found in the source,
        * remove characters after it
        * because they are just a comment
@@ -47,33 +48,38 @@ class dmAdminLinkTag extends dmBaseLinkTag
         
         if ($page = dmDb::table('DmPage')->findOneBySource($pageResource))
         {
-          $this->resource = preg_replace('|^page:\d+(.*)$|', 'app:front/'.$page->slug.'$1', $resource);
+          $resource = preg_replace('|^page:\d+(.*)$|', 'app:front/'.$page->get('slug').'$1', $resource);
         }
         else
         {
           throw new dmException(sprintf('%s is not a valid link resource', $resource));
         }
       }
-
-      if (strncmp($resource, 'media:', 6) === 0)
+      elseif(strncmp($resource, 'media:', 6) === 0)
       {
         $mediaResource = preg_replace('|^media:(\d+).*|', '$1', $resource);
         
         if ($media = dmDb::table('DmMedia')->findOneByIdWithFolder($mediaResource))
         {
-          $mediaFullPath = $media->getFullPath();
-          $this->resource = dmContext::getInstance()->getRequest()->getRelativeUrlRoot().str_replace(dmOs::normalize(sfConfig::get('sf_web_dir')), '', dmOs::normalize($mediaFullPath));
+          $resource = '/'.$media->getWebPath();
+          /*
+           * add relativeUrlRoot to absolute resource
+           */
+          if($relativeUrlRoot = dmArray::get($this->serviceContainer->getParameter('request.context'), 'relative_url_root'))
+          {
+            $resource = $relativeUrlRoot.$resource;
+          }
         }
         else
         {
           throw new dmException(sprintf('%s is not a valid media resource. The media with id %s does not exist', $resource, $mediaResource));
         }
       }
-      
-      if (strncmp($this->resource, 'app:', 4) === 0)
+
+      if (strncmp($resource, 'app:', 4) === 0)
       {
         $type = 'uri';
-        $app = substr($this->resource, 4);
+        $app = substr($resource, 4);
         /*
          * A slug may be added to the app name, extract it
          */
@@ -89,9 +95,9 @@ class dmAdminLinkTag extends dmBaseLinkTag
         
         $resource = $this->serviceContainer->getService('script_name_resolver')->get($app).$slug;
       }
-      elseif ($this->resource{0} === '/')
+      elseif ($resource{0} === '/')
       {
-        $resource = $this->resource;
+        $resource = $resource;
         
         /*
          * add relativeUrlRoot to absolute resource
@@ -101,16 +107,11 @@ class dmAdminLinkTag extends dmBaseLinkTag
           $resource = $relativeUrlRoot.$resource;
         }
       }
-      elseif(strncmp($this->resource, '+/', 2) === 0)
+      elseif(strncmp($resource, '+/', 2) === 0)
       {
-        $resource = substr($this->resource, 2);
-      }
-      else
-      {
-        $resource = $this->resource;
+        $resource = substr($resource, 2);
       }
     }
-
     elseif(is_array($this->resource))
     {
       if(isset($this->resource[1]) && is_object($this->resource[1]))
@@ -196,7 +197,7 @@ class dmAdminLinkTag extends dmBaseLinkTag
       return $href;
     }
 
-    return str_replace('//', '/', $this->serviceContainer->getService('request')->getAbsoluteUrlRoot().'/'.$href);
+    return $this->serviceContainer->getService('request')->getUriPrefix().$href;
   }
 
 }

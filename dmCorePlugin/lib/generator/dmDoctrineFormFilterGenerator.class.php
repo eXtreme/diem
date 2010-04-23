@@ -2,25 +2,16 @@
 
 class dmDoctrineFormFilterGenerator extends sfDoctrineFormFilterGenerator
 {
-
   /**
-   * Filter out models that have disabled generation of form classes
+   * Initializes the current sfGenerator instance.
    *
-   * @return array $models Array of models to generate forms for
+   * @param sfGeneratorManager $generatorManager A sfGeneratorManager instance
    */
-  protected function filterModels($models)
+  public function initialize(sfGeneratorManager $generatorManager)
   {
-    $models = parent::filterModels($models);
-    
-    foreach ($models as $key => $model)
-    {
-      if (strncmp($model, 'ToPrfx', 6) === 0)
-      {
-        unset($models[$key]);
-      }
-    }
+    parent::initialize($generatorManager);
 
-    return $models;
+    $this->setGeneratorClass('dmDoctrineFormFilter');
   }
 
   /**
@@ -45,7 +36,29 @@ class dmDoctrineFormFilterGenerator extends sfDoctrineFormFilterGenerator
     }
 
     parent::generate($params);
-  }  
+  }
+  
+  /**
+   * Returns a sfWidgetForm class name for a given column.
+   *
+   * @param  sfDoctrineColumn $column
+   * @return string    The name of a subclass of sfWidgetForm
+   */
+  public function getWidgetClassForColumn($column)
+  {
+    $class = parent::getWidgetClassForColumn($column);
+
+    if('sfWidgetFormFilterDate' == $class)
+    {
+      $class = 'sfWidgetFormChoice';
+    }
+    elseif('sfWidgetFormFilterInput' == $class)
+    {
+      $class = 'sfWidgetFormDmFilterInput';
+    }
+
+    return $class;
+  }
 
   public function getWidgetOptionsForColumn($column)
   {
@@ -55,14 +68,18 @@ class dmDoctrineFormFilterGenerator extends sfDoctrineFormFilterGenerator
     switch ($column->getDoctrineType())
     {
       case 'boolean':
-        $options[] = "'choices' => array('' => dm::getI18n()->__('yes or no', array(), 'dm'), 1 => dm::getI18n()->__('yes', array(), 'dm'), 0 => dm::getI18n()->__('no', array(), 'dm'))";
+        $options[] = "'choices' => array('' => \$this->getI18n()->__('yes or no', array(), 'dm'), 1 => \$this->getI18n()->__('yes', array(), 'dm'), 0 => \$this->getI18n()->__('no', array(), 'dm'))";
         break;
       case 'date':
       case 'datetime':
       case 'timestamp':
-        $widget = 'new sfWidgetFormInputText(array(), array("class" => "datepicker_me"))';
-        $options[] = "'from_date' => $widget, 'to_date' => $widget";
-        $options[] = $withEmpty;
+        $options[] = "'choices' => array(
+        ''      => '',
+        'today' => \$this->getI18n()->__('Today'),
+        'week'  => \$this->getI18n()->__('Past %number% days', array('%number%' => 7)),
+        'month' => \$this->getI18n()->__('This month'),
+        'year'  => \$this->getI18n()->__('This year')
+      )";
         break;
       case 'enum':
         $values = array('' => '');
@@ -79,6 +96,82 @@ class dmDoctrineFormFilterGenerator extends sfDoctrineFormFilterGenerator
 
     return count($options) ? sprintf('array(%s)', implode(', ', $options)) : '';
   }
-
   
+  /**
+   * Returns a sfValidator class name for a given column.
+   *
+   * @param  sfDoctrineColumn $column
+   * @return string    The name of a subclass of sfValidator
+   */
+  public function getValidatorClassForColumn($column)
+  {
+    $class = parent::getValidatorClassForColumn($column);
+
+    if('sfValidatorDateRange' == $class)
+    {
+      $class = 'sfValidatorChoice';
+    }
+
+    return $class;
+  }
+
+  /**
+   * Returns a PHP string representing options to pass to a validator for a given column.
+   *
+   * @param  sfDoctrineColumn $column
+   * @return string    The options to pass to the validator as a PHP string
+   */
+  public function getValidatorOptionsForColumn($column)
+  {
+    $options = parent::getValidatorOptionsForColumn($column);
+
+    if(in_array($column->getDoctrineType(), array('date', 'datetime', 'timestamp')))
+    {
+      $options = "array('required' => false, 'choices' => array_keys(\$this->widgetSchema['{$column->getName()}']->getOption('choices')))";
+    }
+
+    return $options;
+  }
+
+  public function getAllColumns()
+  {
+    return array_merge($this->getColumns(), $this->getI18nColumns());
+  }
+
+  protected function getI18nColumns()
+  {
+    $columns = array();
+    
+    if($this->isI18n())
+    {
+      $i18nTable = $this->table->getI18nTable();
+
+      foreach(array_keys($i18nTable->getColumns()) as $name)
+      {
+        $columns[] = new sfDoctrineColumn($name, $i18nTable);
+      }
+    }
+
+    return $columns;
+  }
+  
+  /**
+   * Returns the maximum length for a column name.
+   *
+   * @return integer The length of the longer column name
+   */
+  public function getColumnNameMaxLength()
+  {
+    $max = parent::getColumnNameMaxLength();
+    
+    foreach ($this->getI18nColumns() as $column)
+    {
+      if (($m = strlen($column->getFieldName())) > $max)
+      {
+        $max = $m;
+      }
+    }
+
+    return $max;
+  }
 }

@@ -191,7 +191,7 @@ abstract class PluginDmPage extends BaseDmPage
     }
 
     $stmt = Doctrine_Manager::connection()->prepare('SELECT p.id
-FROM dm_page p
+FROM '.$this->getTable()->getTableName().' p
 WHERE p.lft < ? AND p.rgt > ?
 ORDER BY p.rgt ASC
 LIMIT 1')->getStatement();
@@ -238,7 +238,18 @@ LIMIT 1')->getStatement();
       }
     }
 
+    $translationModifiedFields = $this->getCurrentTranslation()->getModified();
+
     parent::save($conn);
+    
+    if(array_key_exists('slug', $translationModifiedFields))
+    {
+      if(!$this->getTable()->isSlugUnique($this->get('slug'), $this->get('id')))
+      {
+        $this->set('slug', $this->getTable()->createUniqueSlug($this->get('slug'), $this->get('id')));
+        return $this->save();
+      }
+    }
   
     if ($dispatcher = $this->getEventDispatcher())
     {

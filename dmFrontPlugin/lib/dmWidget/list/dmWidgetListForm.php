@@ -55,23 +55,36 @@ class dmWidgetListForm extends dmWidgetProjectModelForm
         $filterName = $filterModule->getKey().'Filter';
 
         $this->widgetSchema[$filterName]    = new sfWidgetFormDoctrineChoice(array(
+          'label'     => $this->__($filterModule->getName()),
           'model'     => $filterModule->getModel(),
           'add_empty' => $this->allowFilterAutoRecordId($filterModule)
           ? sprintf('(%s) %s', $this->__('contextual'), $this->getFilterAutoRecord($filterModule)->__toString())
           : false
         ));
-        $this->widgetSchema[$filterName]->setLabel($filterModule->getName());
 
         $this->validatorSchema[$filterName] = new sfValidatorDoctrineChoice(array(
           'model'     => $filterModule->getModel(),
           'required'  => !$this->allowFilterAutoRecordId($filterModule)
         ));
+      }
+      elseif($column = $this->dmModule->getTable()->getColumn($filter))
+      {
+        $filterName = $filter.'Filter';
+        
+        if('boolean' !== $column['type'])
+        {
+          throw new dmException(sprintf('Diem can only filter by module or boolean fields, %s given', $column['type']));
+        }
 
-        $this->widgetSchema[$filterName]->setLabel($this->__($filterModule->getName()));
+        $this->widgetSchema[$filterName]    = new sfWidgetFormInputCheckbox(array(
+          'label'     => $this->__(dmString::humanize($filter))
+        ));
+
+        $this->validatorSchema[$filterName] = new sfValidatorBoolean();
       }
       else
       {
-        throw new dmException(sprintf('Diem can not find a link between %s and %s modules', $this->dmModule, $filter));
+        throw new dmException(sprintf('Diem can not filter %s by %s', $this->dmModule, $filter));
       }
     }
 
@@ -99,8 +112,7 @@ class dmWidgetListForm extends dmWidgetProjectModelForm
   {
     $defaults = array_merge(parent::getFirstDefaults(), array(
       'orderType'  => 'asc',
-      'maxPerPage' => 5,
-      'maxPerPage' => 0
+      'maxPerPage' => 5
     ));
     
     if(!$this->getDefault('orderField') && $this->dmModule->getTable()->isSortable())
@@ -121,10 +133,11 @@ class dmWidgetListForm extends dmWidgetProjectModelForm
     $fields = array();
 
     $allowedTypes = array('time', 'timestamp', 'date', 'enum', 'integer', 'string');
+    $skipColumns  = $this->dmModule->getTable()->hasI18n() ? array('lang') : array();
 
-    foreach($this->dmModule->getTable()->getColumns() as $columnName => $column)
+    foreach($this->dmModule->getTable()->getAllColumns() as $columnName => $column)
     {
-      if (in_array($column['type'], $allowedTypes))
+      if (in_array($column['type'], $allowedTypes) && !in_array($columnName, $skipColumns))
       {
         $fields[$columnName] = $this->__(dmString::humanize($columnName));
       }

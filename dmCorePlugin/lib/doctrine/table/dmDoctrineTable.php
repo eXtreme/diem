@@ -94,13 +94,27 @@ abstract class dmDoctrineTable extends Doctrine_Table
    * Will join all localKey relations
    * @return myDoctrineQuery
    */
-  public function joinLocals(myDoctrineQuery $query)
+  public function joinLocals(myDoctrineQuery $query, $withI18n = false)
   {
     $rootAlias = $query->getRootAlias();
 
     foreach($this->getRelationHolder()->getLocals() as $relation)
     {
-      $query->leftJoin(sprintf('%s.%s %s', $rootAlias, $relation->getAlias(), dmString::lcfirst($relation->getAlias())));
+      if ($relation->getClass() === 'DmMedia')
+      {
+        $query->withDmMedia($relation->getAlias());
+      }
+      else
+      {
+        $joinAlias = dmString::lcfirst($relation->getAlias());
+        $query->leftJoin(sprintf('%s.%s %s', $rootAlias, $relation->getAlias(), $joinAlias));
+
+        if($withI18n && $relation->getTable()->hasI18n())
+        {
+          $joinTranslationAlias = $joinAlias.'Translation';
+          $query->leftJoin($joinAlias.'.Translation '.$joinTranslationAlias.' ON '.$joinAlias.'.id = '.$joinTranslationAlias.'.id AND '.$joinTranslationAlias.'.lang = ?', myDoctrineRecord::getDefaultCulture());
+        }
+      }
     }
 
     return $query;
@@ -172,7 +186,7 @@ abstract class dmDoctrineTable extends Doctrine_Table
   /**
    * Will join named relations
    */
-  public function joinRelations(array $aliases)
+  public function joinRelations(array $aliases, $withI18n = false)
   {
     $rootAlias = $query->getRootAlias();
 
@@ -197,6 +211,12 @@ abstract class dmDoctrineTable extends Doctrine_Table
       {
         $joinAlias = dmString::lcfirst($relation->getAlias());
         $query->leftJoin(sprintf('%s.%s %s', $rootAlias, $relation->getAlias(), $joinAlias));
+
+        if($withI18n && $relation->getTable()->hasI18n())
+        {
+          $joinTranslationAlias = $joinAlias.'Translation';
+          $query->leftJoin($joinAlias.'.Translation '.$joinTranslationAlias.' ON '.$joinAlias.'.id = '.$joinTranslationAlias.'.id AND '.$joinTranslationAlias.'.lang = ?', myDoctrineRecord::getDefaultCulture());
+        }
       }
     }
 
@@ -208,7 +228,7 @@ abstract class dmDoctrineTable extends Doctrine_Table
    */
   public function getAdminListQuery(dmDoctrineQuery $query)
   {
-    return $this->joinAll($query);
+    return $this->joinLocals($query->withI18n(null, $this->getComponentName()), true);
   }
 
   /**

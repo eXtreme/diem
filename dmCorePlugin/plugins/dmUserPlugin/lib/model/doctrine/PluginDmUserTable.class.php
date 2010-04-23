@@ -16,6 +16,36 @@ abstract class PluginDmUserTable extends myDoctrineTable
     ->addWhere('u.is_active = ?', $isActive)
     ->fetchRecord();
   }
+
+  /**
+   * Retrieves a DmUser object from his forgot password code
+   *
+   * @param string $code The forgot password code
+   * @param boolean $isActive The user's status
+   * @return DmUser
+   */
+  public function retrieveByForgotPasswordCode($code, $isActive = true)
+  {
+    return $this->createQuery('u')
+    ->where('u.forgot_password_code = ?', $code)
+    ->addWhere('u.is_active = ?', $isActive)
+    ->fetchRecord();
+  }
+
+  /**
+   * Retrieves a DmUser object from his email and is_active flag.
+   *
+   * @param string $email The email
+   * @param boolean $isActive The user's status
+   * @return DmUser
+   */
+  public function retrieveByEmail($email, $isActive = true)
+  {
+    return $this->createQuery('u')
+    ->where('u.email = ?', $email)
+    ->addWhere('u.is_active = ?', $isActive)
+    ->fetchRecord();
+  }
   
   public function findOneById($id)
   {
