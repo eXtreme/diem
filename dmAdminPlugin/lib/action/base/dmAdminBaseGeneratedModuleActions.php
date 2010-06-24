@@ -118,7 +118,7 @@ class dmAdminBaseGeneratedModuleActions extends dmAdminBaseActions
     }
   }
   
-  protected function processSortForm($form)
+  protected function processSortForm($form, $module)
   {
     $request = $this->getRequest();
     
@@ -139,7 +139,16 @@ class dmAdminBaseGeneratedModuleActions extends dmAdminBaseActions
           
           $this->getUser()->logError($this->getI18n()->__('A problem occured when sorting the items'), true);
         }
-
+        
+        // handling DmSortable behavior
+        if($module->hasPage())
+        {
+          $positions = array_map('intval', $form->getValues());
+          asort($positions);
+        
+          $this->getService('page_synchronizer')->updatePageOrder($positions, $module);
+        }
+        
         $this->getUser()->logInfo($this->getI18n()->__('The items have been sorted successfully'), true);
         
         return $this->redirect($this->getRequest()->getUri());
@@ -347,7 +356,7 @@ class dmAdminBaseGeneratedModuleActions extends dmAdminBaseActions
     
     $this->form = $this->getService('admin_sort_table_form');
     
-    $this->processSortForm($this->form);
+    $this->processSortForm($this->form, $this->getDmModule());
   }
   
   public function executeSortReferers(sfWebRequest $request)
@@ -373,7 +382,7 @@ class dmAdminBaseGeneratedModuleActions extends dmAdminBaseActions
     
     $this->form = $this->getService('admin_sort_referers_form');
     
-    $this->processSortForm($this->form);
+    $this->processSortForm($this->form, $refererModule);
   }
   
   protected function getSortReferersQuery(dmModule $refererModule)

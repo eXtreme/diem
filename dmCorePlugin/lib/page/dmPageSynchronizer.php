@@ -382,7 +382,7 @@ class dmPageSynchronizer
         ));
       }
     }
-
+    
     $modified = false;
     
     if (!$page['id'])
@@ -392,7 +392,18 @@ class dmPageSynchronizer
         throw new dmException(sprintf('parent page with id %d for new page %s was not found', $parentPageId, $page['module'].'.show'));
       }
       
-      dmDb::table('DmPage')->create($page)->getNode()->insertAsLastChildOf($parentPage);
+      // handling DmSortable behavior
+      $insertAs = 'insertAsLastChildOf';
+      if($module->getTable()->isSortable())
+      {
+         $new = $module->getTable()->getTemplate('DmSortable')->getOption('new');
+         if($new == 'first')
+         {
+           $insertAs = 'insertAsFirstChildOf';
+         }
+      }
+      
+      dmDb::table('DmPage')->create($page)->getNode()->$insertAs($parentPage);
     }
     else
     {
@@ -407,6 +418,124 @@ class dmPageSynchronizer
         $pageRecord->refresh(true);
         $pageRecord->getNode()->moveAsLastChildOf($parentPage);
       }
+    }
+  }
+  
+  public function updatePageOrder(array $positions, dmProjectModule $module)
+  {
+    $moduleKey = $module->getKey();
+    $pageTable = dmDb::table('DmPage');
+    
+    $showPages = $pageTable->createQuery('p')->select('p.id, p.module, p.record_id')->where('p.module = ?', $moduleKey)->addWhere('p.action = ?', 'show')->orderBy('p.lft ASC')->execute();
+    
+    $pages = array();
+    foreach($showPages as $showPage)
+    {
+      $pages[(int)$showPage['record_id']] = $showPage;
+    }
+    
+    if($module->hasListPage())
+    {
+      $parentModule = $module;
+      
+      /*
+       * prepare parent page
+       */
+      $parentPageId = dmDb::pdo('SELECT p.id FROM dm_page p WHERE p.module = ? AND p.action = ?', array($moduleKey, 'list'))->fetch(PDO::FETCH_NUM);
+      $parentPageId = $parentPageId[0];
+      
+      if(!$parentPageId)
+      {
+        throw new dmException(sprintf('%s needs a parent page, %s.%s, but it does not exists', $module, $moduleKey, 'list'));
+      }
+      
+      $positions = array_flip($positions);
+      
+      /*
+       * update page order
+       */
+      $this->reorderPagesByRecordPositions($pages, $parentPageId, $moduleKey, $positions);
+    }
+    else
+    {
+      if(!$parentModule = $module->getNearestAncestorWithPage())
+      {
+        throw new dmException(sprintf(
+          '%s module is child of %s module, but %s module has no ancestor with page',
+          $module, $parentModule, $module
+        ));
+      }
+      
+      /*
+       * prepare parent pages
+       */
+      $_parentPageIds = dmDb::pdo('SELECT p.id, p.record_id FROM dm_page p WHERE p.module = ? AND p.action = ?', array($parentModule->getKey(), 'show'))->fetchAll(PDO::FETCH_NUM);
+      
+      $parentPageIds = array();
+      foreach($_parentPageIds as $value) $parentPageIds[$value[1]] = $value[0];
+
+      $parentRecordIds = $this->getParentRecordIds($module, $parentModule);
+      
+      /*
+       * prepare parent<>record relations
+       */
+      $useParents = array();
+      foreach($positions as $recordId => $position)
+      {
+        $parentPageId = $parentRecordIds[$recordId];
+        if(!isset($useParents[$parentPageId]))
+        {
+          $useParents[$parentPageId] = array(0=>null);
+        }
+        $useParents[$parentPageId][] = $recordId;
+      }
+      
+      /*
+       * update page order
+       */
+      foreach($useParents as $parentId => $recordIds)
+      {
+        $this->reorderPagesByRecordPositions($pages, $parentPageIds[$parentId], $moduleKey, $recordIds);
+      }
+    }
+  }
+  
+  protected function reorderPagesByRecordPositions($pages, $parentPageId, $moduleKey, $positions)
+  {
+    $pageTable = dmDb::table('DmPage');
+    $parentPage = $pageTable->find($parentPageId);
+    $children = $parentPage->getNode()->getChildren();
+    
+    $staticPositions = array();
+    $i = 1;
+    foreach($children as $page)
+    {
+      if($page->module != $moduleKey || $page->action != 'show')
+      {
+        $staticPositions[$i] = $page;
+      }
+      $i++;
+    }
+    
+    $newPositions = array();
+    
+    for($j = 1; $j < $i; $j++)
+    {
+      if(isset($staticPositions[$j]))
+      {
+        $newPositions[] = $staticPositions[$j];
+      }
+      
+      if(isset($positions[$j]))
+      {
+        $newPositions[] = $pages[$positions[$j]];
+      }
+    }
+    
+    foreach($newPositions as $page)
+    {
+      $page->refresh(true);
+      $page->getNode()->moveAsLastChildOf($parentPage);
     }
   }
 
