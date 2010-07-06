@@ -426,25 +426,14 @@ class dmPageSynchronizer
     $moduleKey = $module->getKey();
     $pageTable = dmDb::table('DmPage');
     
-    $showPages = $pageTable->createQuery('p')->select('p.id, p.module, p.record_id')->where('p.module = ?', $moduleKey)->addWhere('p.action = ?', 'show')->orderBy('p.lft ASC')->execute();
-    
-    $pages = array();
-    foreach($showPages as $showPage)
-    {
-      $pages[(int)$showPage['record_id']] = $showPage;
-    }
-    
     if($module->hasListPage())
     {
-      $parentModule = $module;
-      
       /*
        * prepare parent page
        */
-      $parentPageId = dmDb::pdo('SELECT p.id FROM dm_page p WHERE p.module = ? AND p.action = ?', array($moduleKey, 'list'))->fetch(PDO::FETCH_NUM);
-      $parentPageId = $parentPageId[0];
+      $parentPage = $pageTable->createQuery('p')->select('p.*')->where('p.module = ?', $moduleKey)->addWhere('p.action = ?', 'list')->fetchOne();
       
-      if(!$parentPageId)
+      if(!$parentPage)
       {
         throw new dmException(sprintf('%s needs a parent page, %s.%s, but it does not exists', $module, $moduleKey, 'list'));
       }
@@ -454,7 +443,7 @@ class dmPageSynchronizer
       /*
        * update page order
        */
-      $this->reorderPagesByRecordPositions($pages, $parentPageId, $moduleKey, $positions);
+      $this->reorderPagesByRecordPositions($parentPage, $moduleKey, $positions);
     }
     else
     {
@@ -469,10 +458,10 @@ class dmPageSynchronizer
       /*
        * prepare parent pages
        */
-      $_parentPageIds = dmDb::pdo('SELECT p.id, p.record_id FROM dm_page p WHERE p.module = ? AND p.action = ?', array($parentModule->getKey(), 'show'))->fetchAll(PDO::FETCH_NUM);
+      $_parentPages = $pageTable->createQuery('p')->select('p.*')->where('p.module = ?', $parentModule->getKey())->addWhere('p.action = ?', 'show')->execute();
       
-      $parentPageIds = array();
-      foreach($_parentPageIds as $value) $parentPageIds[$value[1]] = $value[0];
+      $parentPages = array();
+      foreach($_parentPages as $parent) $parentPages[$parent['record_id']] = $parent;
 
       $parentRecordIds = $this->getParentRecordIds($module, $parentModule);
       
@@ -495,17 +484,18 @@ class dmPageSynchronizer
        */
       foreach($useParents as $parentId => $recordIds)
       {
-        $this->reorderPagesByRecordPositions($pages, $parentPageIds[$parentId], $moduleKey, $recordIds);
+        $this->reorderPagesByRecordPositions($parentPages[$parentId], $moduleKey, $recordIds);
       }
     }
   }
   
-  protected function reorderPagesByRecordPositions($pages, $parentPageId, $moduleKey, $positions)
+  protected function reorderPagesByRecordPositions($parentPage, $moduleKey, $positions)
   {
     $pageTable = dmDb::table('DmPage');
-    $parentPage = $pageTable->find($parentPageId);
+    
     $children = $parentPage->getNode()->getChildren();
     
+    $pages = array();
     $staticPositions = array();
     $i = 1;
     foreach($children as $page)
@@ -513,6 +503,10 @@ class dmPageSynchronizer
       if($page->module != $moduleKey || $page->action != 'show')
       {
         $staticPositions[$i] = $page;
+      }
+      else
+      {
+        $pages[(int)$page['record_id']] = $page;
       }
       $i++;
     }
